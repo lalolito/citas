@@ -2,15 +2,13 @@
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\CitasController;
+use App\Http\Controllers\citasController;
 
-Route::middleware('auth:sanctum')->group(function () {
-    Route::get('/citas', [CitasController::class, 'index']);
-    Route::get('/cita/{id}', [CitasController::class, 'show']);
-    Route::post('/cita', [CitasController::class, 'store']);
-    Route::put('/cita/{id}', [CitasController::class, 'update']);
-    Route::delete('/cita/{id}', [CitasController::class, 'destroy']);
-}); 
+    Route::get('/citas', [citasController::class, 'index']);
+    Route::get('/cita/{id}', [citasController::class, 'show']);
+    Route::post('/cita', [citasController::class, 'store']);
+    Route::put('/cita/{id}', [citasController::class, 'update']);
+    Route::delete('/cita/{id}', [citasController::class, 'destroy']);
 
 /*Route::get('/cita', function () {
     return'cliente lista';
