@@ -4,7 +4,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\citasController;
 
-    Route::get('/citas', [citasController::class, 'index']);
+    Route::get('/cita', [citasController::class, 'index']);
     Route::get('/cita/{id}', [citasController::class, 'show']);
     Route::post('/cita', [citasController::class, 'store']);
     Route::put('/cita/{id}', [citasController::class, 'update']);
