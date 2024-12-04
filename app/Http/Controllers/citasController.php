@@ -3,129 +3,135 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Validator;
 use App\Models\Citas;
-use App\Http\Controllers\Controller;
-
-
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Validator;
 class citasController extends Controller
 {
+    /**
+     * Mostrar todas las citas.
+     */
     public function index()
     {
-        try {
-            $citas = Citas::all();
-            return response()->json($citas, 200);
-        } catch (\Exception $e) {
-            \Log::error('Error al obtener las citas: ' . $e->getMessage());
-            return response()->json(['error' => 'Error interno al procesar la solicitud.'], 500);
-        }
+        $citas = Citas::all();
+
+        return response()->json([
+            'message' => 'Citas obtenidas exitosamente',
+            'citas' => $citas,
+        ], 200);
     }
 
-    public function show($id)
-    {
-        try {
-            $cita = Citas::find($id);
-
-            if (!$cita) {
-                return response()->json(['message' => 'Cita no encontrada'], 404);
-            }
-
-            return response()->json($cita, 200);
-        } catch (\Exception $e) {
-            \Log::error('Error al obtener la cita: ' . $e->getMessage());
-            return response()->json(['error' => 'Error interno al procesar la solicitud.'], 500);
-        }
-    }
-
+    /**
+     * Crear una nueva cita.
+     */
     public function store(Request $request)
     {
-        try {
-            // Validación de los datos
-            $validator = Validator::make($request->all(), [
-                'nombre' => 'required|string|max:50',
-                'apellido' => 'required|string|max:50',
-                'tipo_documento' => 'required|in:cc,ti,cxe,pasaporte',
-                'numero_documento' => 'required|string|max:20|unique:citas',
-                'tipo_servicio' => 'required|in:cambio de aceite,revision general,mantenimiento general',
-                'dia' => 'required|date',
-                'hora' => 'required|date_format:H:i',
-            ], [
-                'nombre.required' => 'El nombre es obligatorio.',
-                'apellido.required' => 'El apellido es obligatorio.',
-                'tipo_documento.required' => 'El tipo de documento es obligatorio.',
-                'tipo_documento.in' => 'El tipo de documento no es válido.',
-                'numero_documento.required' => 'El número de documento es obligatorio.',
-                'numero_documento.unique' => 'El número de documento ya está registrado.',
-                'tipo_servicio.required' => 'El tipo de servicio es obligatorio.',
-                'tipo_servicio.in' => 'El tipo de servicio no es válido.',
-                'dia.required' => 'El día de la cita es obligatorio.',
-                'dia.date' => 'El día debe ser una fecha válida.',
-                'hora.required' => 'La hora de la cita es obligatoria.',
-                'hora.date_format' => 'La hora debe tener el formato HH:mm.',
-            ]);
+        $validatedData = $request->validate([
+            'nombre' => 'required|string|max:50',
+            'apellido' => 'required|string|max:50',
+            'tipo_documento' => 'required|string|in:cc,ti,cxe,pasaporte',
+            'numero_documento' => 'required|string|max:20|unique:citas,numero_documento',
+            'tipo_servicio' => 'required|string|in:cambio de aceite,revision general,mantenimiento general',
+            'dia' => 'required|date|after_or_equal:today',
+            'hora' => 'required|date_format:H:i|after_or_equal:08:00|before_or_equal:18:00',
+        ]);
 
-            if ($validator->fails()) {
-                return response()->json(['errors' => $validator->errors()], 422);
-            }
+        $existingCita = Citas::where('dia', $validatedData['dia'])
+                            ->where('hora', $validatedData['hora'])
+                            ->first();
 
-            // Creación de la cita
-            $cita = Citas::create($validator->validated());
-            return response()->json($cita, 201);
-
-        } catch (\Exception $e) {
-            \Log::error('Error al guardar la cita: ' . $e->getMessage());
-            return response()->json(['error' => 'Error interno al procesar la solicitud.'], 500);
+        if ($existingCita) {
+            return response()->json([
+                'message' => 'Ya existe una cita programada para este día y hora.',
+            ], 409);
         }
+
+        $cita = Citas::create($validatedData);
+
+        return response()->json([
+            'message' => 'Cita creada exitosamente',
+            'cita' => $cita,
+        ], 201);
     }
 
+    /**
+     * Mostrar los detalles de una cita específica.
+     */
+    public function show($id)
+    {
+        $cita = Citas::find($id);
+
+        if (!$cita) {
+            return response()->json([
+                'message' => 'Cita no encontrada',
+            ], 404);
+        }
+
+        return response()->json([
+            'message' => 'Cita obtenida exitosamente',
+            'cita' => $cita,
+        ], 200);
+    }
+
+    /**
+     * Actualizar una cita existente.
+     */
     public function update(Request $request, $id)
     {
-        try {
-            $cita = Citas::find($id);
+        $cita = Citas::find($id);
 
-            if (!$cita) {
-                return response()->json(['message' => 'Cita no encontrada'], 404);
-            }
-
-            $validator = Validator::make($request->all(), [
-                'nombre' => 'nullable|string|max:50',
-                'apellido' => 'nullable|string|max:50',
-                'tipo_documento' => 'nullable|in:cc,ti,cxe,pasaporte',
-                'numero_documento' => 'nullable|string|max:20|unique:citas,numero_documento,' . $id,
-                'tipo_servicio' => 'nullable|in:cambio de aceite,revision general,mantenimiento general',
-                'dia' => 'nullable|date',
-                'hora' => 'nullable|date_format:H:i',
-            ]);
-
-            if ($validator->fails()) {
-                return response()->json(['errors' => $validator->errors()], 422);
-            }
-
-            $cita->update($validator->validated());
-            return response()->json($cita, 200);
-
-        } catch (\Exception $e) {
-            \Log::error('Error al actualizar la cita: ' . $e->getMessage());
-            return response()->json(['error' => 'Error interno al procesar la solicitud.'], 500);
+        if (!$cita) {
+            return response()->json([
+                'message' => 'Cita no encontrada',
+            ], 404);
         }
+
+        $validatedData = $request->validate([
+            'nombre' => 'sometimes|string|max:50',
+            'apellido' => 'sometimes|string|max:50',
+            'tipo_documento' => 'sometimes|string|in:cc,ti,cxe,pasaporte',
+            'numero_documento' => 'sometimes|string|max:20|unique:citas,numero_documento,' . $id,
+            'tipo_servicio' => 'sometimes|string|in:cambio de aceite,revision general,mantenimiento general',
+            'dia' => 'sometimes|date|after_or_equal:today',
+            'hora' => 'sometimes|date_format:H:i|after_or_equal:08:00|before_or_equal:18:00',
+        ]);
+
+        $existingCita = Citas::where('dia', $validatedData['dia'] ?? $cita->dia)
+                            ->where('hora', $validatedData['hora'] ?? $cita->hora)
+                            ->where('id', '!=', $id)
+                            ->first();
+
+        if ($existingCita) {
+            return response()->json([
+                'message' => 'Ya existe una cita programada para este día y hora.',
+            ], 409);
+        }
+
+        $cita->update($validatedData);
+
+        return response()->json([
+            'message' => 'Cita actualizada exitosamente',
+            'cita' => $cita,
+        ], 200);
     }
 
+    /**
+     * Eliminar una cita.
+     */
     public function destroy($id)
     {
-        try {
-            $cita = Citas::find($id);
+        $cita = Citas::find($id);
 
-            if (!$cita) {
-                return response()->json(['message' => 'Cita no encontrada'], 404);
-            }
-
-            $cita->delete();
-            return response()->json(['message' => 'Cita eliminada exitosamente'], 200);
-
-        } catch (\Exception $e) {
-            \Log::error('Error al eliminar la cita: ' . $e->getMessage());
-            return response()->json(['error' => 'Error interno al procesar la solicitud.'], 500);
+        if (!$cita) {
+            return response()->json([
+                'message' => 'Cita no encontrada',
+            ], 404);
         }
+
+        $cita->delete();
+
+        return response()->json([
+            'message' => 'Cita eliminada exitosamente',
+        ], 200);
     }
 }
-
